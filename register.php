@@ -79,77 +79,103 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
-                <h2>Create Your Account</h2>
-                <p>Join our career guidance platform</p>
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <i class="fas fa-rocket" style="font-size: 2.5rem; color: var(--primary-blue); margin-bottom: 0.5rem;"></i>
+                    <h1 style="font-size: 1.75rem; margin: 0;">CareerPath</h1>
+                </div>
+                <h2>Get Started Today!</h2>
+                <p>Create your account and begin your career transformation</p>
             </div>
             
             <?php if($error): ?>
-                <div class="alert alert-error"><?php echo $error; ?></div>
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span><?php echo htmlspecialchars($error); ?></span>
+                </div>
             <?php endif; ?>
             
             <?php if($success): ?>
-                <div class="alert alert-success"><?php echo $success; ?></div>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        <strong><?php echo htmlspecialchars($success); ?></strong>
+                        <p style="margin: 0.5rem 0 0; font-size: 0.9rem;">
+                            <a href="login.php" style="color: var(--success); font-weight: 600;">Click here to login</a>
+                        </p>
+                    </div>
+                </div>
             <?php endif; ?>
             
             <form method="POST" class="auth-form">
                 <div class="form-group">
-                    <label for="name">Full Name *</label>
+                    <label for="name"><i class="fas fa-user"></i> Full Name *</label>
                     <input type="text" id="name" name="name" required 
-                           placeholder="Enter your full name"
+                           placeholder="John Doe"
                            value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
                 </div>
                 
                 <div class="form-group">
-                    <label for="email">Email Address *</label>
+                    <label for="email"><i class="fas fa-envelope"></i> Email Address *</label>
                     <input type="email" id="email" name="email" required 
-                           placeholder="Enter your email"
+                           placeholder="you@example.com"
                            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                 </div>
                 
                 <div class="form-group">
-                    <label for="phone">Phone Number</label>
+                    <label for="phone"><i class="fas fa-phone"></i> Phone Number</label>
                     <input type="tel" id="phone" name="phone" 
-                           placeholder="Enter your phone number"
+                           placeholder="+1 (555) 000-0000"
                            value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                 </div>
                 
                 <div class="form-group">
-                    <label for="password">Password *</label>
-                    <div class="password-input">
-                        <input type="password" id="password" name="password" required 
-                               placeholder="Create a password (min. 6 characters)">
-                        <button type="button" class="password-toggle">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="confirm_password">Confirm Password *</label>
-                    <div class="password-input">
-                        <input type="password" id="confirm_password" name="confirm_password" required 
-                               placeholder="Confirm your password">
-                        <button type="button" class="password-toggle">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="user_type">I want to join as: *</label>
+                    <label for="user_type"><i class="fas fa-briefcase"></i> Join As *</label>
                     <select id="user_type" name="user_type" required>
-                        <option value="">Select role</option>
-                        <option value="job_seeker" <?php echo ($_POST['user_type'] ?? '') == 'job_seeker' ? 'selected' : ''; ?>>Job Seeker</option>
-                        <option value="recruiter" <?php echo ($_POST['user_type'] ?? '') == 'recruiter' ? 'selected' : ''; ?>>Recruiter/Employer</option>
-                        <option value="mentor" <?php echo ($_POST['user_type'] ?? '') == 'mentor' ? 'selected' : ''; ?>>Mentor</option>
+                        <option value="">-- Select your role --</option>
+                        <option value="job_seeker" <?php echo ($_POST['user_type'] ?? '') == 'job_seeker' ? 'selected' : ''; ?>>
+                            <i class="fas fa-user-graduate"></i> Job Seeker
+                        </option>
+                        <option value="recruiter" <?php echo ($_POST['user_type'] ?? '') == 'recruiter' ? 'selected' : ''; ?>>
+                            <i class="fas fa-building"></i> Recruiter/Employer
+                        </option>
+                        <option value="mentor" <?php echo ($_POST['user_type'] ?? '') == 'mentor' ? 'selected' : ''; ?>>
+                            <i class="fas fa-chalkboard-teacher"></i> Mentor
+                        </option>
                     </select>
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Password *</label>
+                    <input type="password" id="password" name="password" required 
+                           placeholder="At least 6 characters">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm_password"><i class="fas fa-lock"></i> Confirm Password *</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required 
+                           placeholder="Confirm your password">
+                </div>
+                
+                <label class="checkbox" style="margin-bottom: 1.75rem;">
+                    <input type="checkbox" name="agree_terms" required> 
+                    <span>I agree to the <a href="#" style="color: var(--primary-blue);">Terms of Service</a> and <a href="#" style="color: var(--primary-blue);">Privacy Policy</a></span>
+                </label>
+                
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+                
+                <div style="text-align: center; margin: 1.5rem 0; color: var(--gray-500); display: flex; align-items: center; gap: 1rem;">
+                    <hr style="flex: 1; border: none; border-top: 1px solid var(--gray-200);">
+                    <span style="font-size: 0.9rem;">or</span>
+                    <hr style="flex: 1; border: none; border-top: 1px solid var(--gray-200);">
+                </div>
                 
                 <div class="auth-footer">
-                    <p>Already have an account? <a href="login.php">Sign In</a></p>
-                    <p><a href="index.php">Back to Home</a></p>
+                    <p>Already have an account?</p>
+                    <p><a href="login.php" style="color: var(--primary-blue); font-weight: 700;">Sign In</a></p>
+                    <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--gray-200);">
+                    <p><a href="index.php"><i class="fas fa-home"></i> Back to Home</a></p>
                 </div>
             </form>
         </div>

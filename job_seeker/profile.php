@@ -17,6 +17,14 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
+// Get resume data if exists
+$resume_stmt = $conn->prepare("
+    SELECT * FROM resumes WHERE user_id = ? ORDER BY created_at DESC LIMIT 1
+");
+$resume_stmt->bind_param("i", $user_id);
+$resume_stmt->execute();
+$resume = $resume_stmt->get_result()->fetch_assoc();
+
 // Update profile
 if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
     $name = trim($_POST['name']);
@@ -25,14 +33,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
     $skills = trim($_POST['skills']);
     $experience = trim($_POST['experience']);
     $education = trim($_POST['education']);
-    $resume_file = $_FILES['resume']['name'];
     
-    // Handle file upload
-    if($resume_file) {
-        $target_dir = "../uploads/resumes/";
-        $target_file = $target_dir . basename($resume_file);
-        move_uploaded_file($_FILES["resume"]["tmp_name"], $target_file);
-    }
     $update_stmt = $conn->prepare("UPDATE users SET name = ?, phone = ?, bio = ?, skills = ?, experience = ?, education = ? WHERE id = ?");
     $update_stmt->bind_param("ssssssi", $name, $phone, $bio, $skills, $experience, $education, $user_id);
     
@@ -46,6 +47,145 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
     } else {
         $error = "Error updating profile. Please try again.";
     }
+}
+
+// Save resume data
+if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_resume'])) {
+    $full_name = trim($_POST['full_name']);
+    $email = trim($_POST['email']);
+    $phone_num = trim($_POST['phone_num']);
+    $location = trim($_POST['location']);
+    $professional_summary = trim($_POST['professional_summary']);
+    $experiences = trim($_POST['experiences']);
+    $education_data = trim($_POST['education_data']);
+    $skills_data = trim($_POST['skills_data']);
+    $certifications = trim($_POST['certifications']);
+    $template = trim($_POST['template']);
+    
+    // Check if resume exists
+    $check_stmt = $conn->prepare("SELECT id FROM resumes WHERE user_id = ?");
+    $check_stmt->bind_param("i", $user_id);
+    $check_stmt->execute();
+    $existing = $check_stmt->get_result()->fetch_assoc();
+    
+    if($existing) {
+        $resume_update = $conn->prepare("
+            UPDATE resumes SET 
+            full_name = ?, email = ?, phone = ?, location = ?, 
+            professional_summary = ?, experiences = ?, education = ?, 
+            skills = ?, certifications = ?, template = ?, updated_at = NOW()
+            WHERE user_id = ?
+        ");
+        $resume_update->bind_param(
+            "ssssssssssi", 
+            $full_name, $email, $phone_num, $location, $professional_summary, 
+            $experiences, $education_data, $skills_data, $certifications, $template, $user_id
+        );
+        $resume_update->execute();
+    } else {
+        $resume_insert = $conn->prepare("
+            INSERT INTO resumes 
+            (user_id, full_name, email, phone, location, professional_summary, 
+             experiences, education, skills, certifications, template, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $resume_insert->bind_param(
+            "isssssssss", 
+            $user_id, $full_name, $email, $phone_num, $location, $professional_summary, 
+            $experiences, $education_data, $skills_data, $certifications, $template
+        );
+        $resume_insert->execute();
+    }
+    
+    $success = "Resume saved successfully!";
+    
+    // Refresh resume data
+    $resume_stmt->execute();
+    $resume = $resume_stmt->get_result()->fetch_assoc();
+}
+
+// Download resume as PDF
+if(isset($_GET['download_pdf']) && $_GET['download_pdf'] == '1') {
+    if(!$resume) {
+        die("Resume not found");
+    }
+    
+    // Include TCPDF or use alternative library
+    require_once('../vendor/autoload.php');
+    
+    $pdf = new \TCPDF();
+    $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+    $pdf->SetMargins(15, 15, 15);
+    $pdf->SetAutoPageBreak(TRUE, 15);
+    $pdf->AddPage();
+    $pdf->SetFont('helvetica', 'B', 16);
+    
+    // Header with name
+    $pdf->SetTextColor(30, 58, 138);
+    $pdf->Cell(0, 10, $resume['full_name'], 0, 1, 'C');
+    
+    $pdf->SetFont('helvetica', '', 10);
+    $pdf->SetTextColor(71, 85, 105);
+    $contact = $resume['location'] . ' | ' . $resume['phone'] . ' | ' . $resume['email'];
+    $pdf->Cell(0, 5, $contact, 0, 1, 'C');
+    $pdf->Ln(5);
+    
+    // Professional Summary
+    if($resume['professional_summary']) {
+        $pdf->SetFont('helvetica', 'B', 11);
+        $pdf->SetTextColor(30, 58, 138);
+        $pdf->Cell(0, 8, 'PROFESSIONAL SUMMARY', 0, 1);
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->MultiCell(0, 5, $resume['professional_summary'], 0, 'J');
+        $pdf->Ln(3);
+    }
+    
+    // Experience
+    if($resume['experiences']) {
+        $pdf->SetFont('helvetica', 'B', 11);
+        $pdf->SetTextColor(30, 58, 138);
+        $pdf->Cell(0, 8, 'WORK EXPERIENCE', 0, 1);
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->MultiCell(0, 5, $resume['experiences'], 0, 'J');
+        $pdf->Ln(3);
+    }
+    
+    // Education
+    if($resume['education']) {
+        $pdf->SetFont('helvetica', 'B', 11);
+        $pdf->SetTextColor(30, 58, 138);
+        $pdf->Cell(0, 8, 'EDUCATION', 0, 1);
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->MultiCell(0, 5, $resume['education'], 0, 'J');
+        $pdf->Ln(3);
+    }
+    
+    // Skills
+    if($resume['skills']) {
+        $pdf->SetFont('helvetica', 'B', 11);
+        $pdf->SetTextColor(30, 58, 138);
+        $pdf->Cell(0, 8, 'SKILLS', 0, 1);
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->MultiCell(0, 5, $resume['skills'], 0, 'J');
+        $pdf->Ln(3);
+    }
+    
+    // Certifications
+    if($resume['certifications']) {
+        $pdf->SetFont('helvetica', 'B', 11);
+        $pdf->SetTextColor(30, 58, 138);
+        $pdf->Cell(0, 8, 'CERTIFICATIONS', 0, 1);
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->MultiCell(0, 5, $resume['certifications'], 0, 'J');
+    }
+    
+    $pdf->Output($resume['full_name'] . '_Resume.pdf', 'D');
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -180,64 +320,152 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profile'])) {
                     
                     <div class="tab-content" id="resume">
                         <div class="resume-section">
-                            <h3>Resume Builder</h3>
-                            <p>Create a professional resume using our templates</p>
+                            <h3><i class="fas fa-file-pdf"></i> Resume Builder</h3>
+                            <p>Create a professional resume that you can download as PDF</p>
                             
-                            <div class="resume-templates">
-                                <div class="template-card">
-                                    <div class="template-preview">
-                                        <div class="template-header" style="background: #2563eb;"></div>
-                                        <div class="template-body">
-                                            <div class="template-line"></div>
-                                            <div class="template-line short"></div>
-                                            <div class="template-line"></div>
+                            <form method="POST" class="resume-builder-form" id="resumeForm">
+                                <input type="hidden" name="save_resume" value="1">
+                                
+                                <!-- Template Selection -->
+                                <div class="form-group">
+                                    <label>Choose Template</label>
+                                    <div class="template-selection">
+                                        <div class="template-option">
+                                            <input type="radio" id="template_modern" name="template" value="modern_blue" <?php echo ($resume && $resume['template'] == 'modern_blue') ? 'checked' : ''; ?>>
+                                            <label for="template_modern" class="template-label">
+                                                <span class="template-preview" style="background: linear-gradient(135deg, #1e3a8a, #0f172a);"></span>
+                                                Modern Blue
+                                            </label>
+                                        </div>
+                                        <div class="template-option">
+                                            <input type="radio" id="template_dark" name="template" value="professional_dark" <?php echo ($resume && $resume['template'] == 'professional_dark') ? 'checked' : ''; ?>>
+                                            <label for="template_dark" class="template-label">
+                                                <span class="template-preview" style="background: #1e293b;"></span>
+                                                Professional Dark
+                                            </label>
+                                        </div>
+                                        <div class="template-option">
+                                            <input type="radio" id="template_green" name="template" value="clean_green" checked>
+                                            <label for="template_green" class="template-label">
+                                                <span class="template-preview" style="background: linear-gradient(135deg, #059669, #047857);"></span>
+                                                Clean Green
+                                            </label>
                                         </div>
                                     </div>
-                                    <h4>Modern Blue</h4>
-                                    <button class="btn btn-outline use-template" data-template="modern_blue">
-                                        <i class="fas fa-eye"></i> Preview
-                                    </button>
                                 </div>
                                 
-                                <div class="template-card">
-                                    <div class="template-preview">
-                                        <div class="template-header" style="background: #1e293b;"></div>
-                                        <div class="template-body">
-                                            <div class="template-line"></div>
-                                            <div class="template-line short"></div>
-                                            <div class="template-line"></div>
-                                        </div>
-                                    </div>
-                                    <h4>Professional Dark</h4>
-                                    <button class="btn btn-outline use-template" data-template="professional_dark">
-                                        <i class="fas fa-eye"></i> Preview
-                                    </button>
+                                <!-- Contact Information -->
+                                <div class="resume-section-header">
+                                    <h4><i class="fas fa-user"></i> Contact Information</h4>
                                 </div>
                                 
-                                <div class="template-card">
-                                    <div class="template-preview">
-                                        <div class="template-header" style="background: #0f766e;"></div>
-                                        <div class="template-body">
-                                            <div class="template-line"></div>
-                                            <div class="template-line short"></div>
-                                            <div class="template-line"></div>
-                                        </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="full_name">Full Name *</label>
+                                        <input type="text" id="full_name" name="full_name" required value="<?php echo htmlspecialchars($resume['full_name'] ?? $user['name']); ?>">
                                     </div>
-                                    <h4>Clean Green</h4>
-                                    <button class="btn btn-outline use-template" data-template="clean_green">
-                                        <i class="fas fa-eye"></i> Preview
-                                    </button>
+                                    <div class="form-group">
+                                        <label for="location">Location</label>
+                                        <input type="text" id="location" name="location" value="<?php echo htmlspecialchars($resume['location'] ?? ''); ?>" placeholder="e.g., New York, USA">
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div class="resume-actions">
-                                <button class="btn btn-primary" id="generateResume">
-                                    <i class="fas fa-file-pdf"></i> Generate PDF Resume
-                                </button>
-                                <button class="btn btn-secondary" id="uploadResume">
-                                    <i class="fas fa-upload"></i> Upload Existing Resume
-                                </button>
-                            </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="email">Email *</label>
+                                        <input type="email" id="email" name="email" required value="<?php echo htmlspecialchars($resume['email'] ?? $user['email']); ?>">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="phone_num">Phone Number</label>
+                                        <input type="tel" id="phone_num" name="phone_num" value="<?php echo htmlspecialchars($resume['phone'] ?? $user['phone']); ?>">
+                                    </div>
+                                </div>
+                                
+                                <!-- Professional Summary -->
+                                <div class="resume-section-header">
+                                    <h4><i class="fas fa-briefcase"></i> Professional Summary</h4>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="professional_summary">Summary</label>
+                                    <textarea id="professional_summary" name="professional_summary" rows="4" placeholder="Write a brief summary of your professional background and career objectives..."><?php echo htmlspecialchars($resume['professional_summary'] ?? ''); ?></textarea>
+                                </div>
+                                
+                                <!-- Work Experience -->
+                                <div class="resume-section-header">
+                                    <h4><i class="fas fa-suitcase"></i> Work Experience</h4>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="experiences">Work Experience</label>
+                                    <textarea id="experiences" name="experiences" rows="6" placeholder="Example:
+Senior Software Engineer - XYZ Company (2022-Present)
+• Led development of microservices architecture
+• Mentored junior developers
+• Improved system performance by 40%
+
+Software Engineer - ABC Corp (2020-2022)
+• Developed and maintained web applications
+• Collaborated with cross-functional teams
+• Implemented automated testing solutions"><?php echo htmlspecialchars($resume['experiences'] ?? ''); ?></textarea>
+                                </div>
+                                
+                                <!-- Education -->
+                                <div class="resume-section-header">
+                                    <h4><i class="fas fa-graduation-cap"></i> Education</h4>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="education_data">Education</label>
+                                    <textarea id="education_data" name="education_data" rows="4" placeholder="Example:
+Bachelor of Science in Computer Science
+University of Technology (2018-2020)
+GPA: 3.8/4.0 | Honors: Cum Laude
+
+Diploma in Information Technology
+College Name (2016-2018)"><?php echo htmlspecialchars($resume['education'] ?? ''); ?></textarea>
+                                </div>
+                                
+                                <!-- Skills -->
+                                <div class="resume-section-header">
+                                    <h4><i class="fas fa-star"></i> Skills</h4>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="skills_data">Skills</label>
+                                    <textarea id="skills_data" name="skills_data" rows="3" placeholder="Example:
+Technical: PHP, JavaScript, MySQL, React, Docker, AWS, Git
+Soft Skills: Leadership, Communication, Problem Solving, Time Management"><?php echo htmlspecialchars($resume['skills'] ?? $user['skills']); ?></textarea>
+                                </div>
+                                
+                                <!-- Certifications -->
+                                <div class="resume-section-header">
+                                    <h4><i class="fas fa-certificate"></i> Certifications & Awards</h4>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="certifications">Certifications (Optional)</label>
+                                    <textarea id="certifications" name="certifications" rows="3" placeholder="Example:
+AWS Solutions Architect Associate - Amazon (2023)
+Docker Certified Associate - Docker (2022)
+Scrum Master Certification - Scrum Alliance (2021)"><?php echo htmlspecialchars($resume['certifications'] ?? ''); ?></textarea>
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div class="resume-actions">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Save Resume
+                                    </button>
+                                    <?php if($resume): ?>
+                                    <a href="?download_pdf=1" class="btn btn-success" style="background: linear-gradient(135deg, #059669, #047857);">
+                                        <i class="fas fa-download"></i> Download PDF
+                                    </a>
+                                    <a href="preview_resume.php" class="btn btn-secondary" target="_blank">
+                                        <i class="fas fa-eye"></i> Preview
+                                    </a>
+                                    <?php endif; ?>
+                                </div>
+                            </form>
                         </div>
                     </div>
                     

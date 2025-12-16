@@ -25,7 +25,10 @@ $user_type = $_SESSION['user_type'];
     <main class="dashboard-main">
         <div class="container">
             <div class="dashboard-header">
-                <h1>Welcome back, <?php echo $_SESSION['user_name']; ?>!</h1>
+                <h1>
+                    <i class="fas fa-wave-hand" style="color: #fbbf24;"></i>
+                    Welcome back, <?php echo htmlspecialchars($_SESSION['user_name']); ?>!
+                </h1>
                 <p>Here's what's happening with your career journey</p>
             </div>
             

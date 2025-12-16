@@ -250,6 +250,26 @@ INSERT INTO resume_templates (name, description, is_premium, price) VALUES
 ('Creative Color', 'Colorful design for creative industries', TRUE, 7.99),
 ('Minimalist', 'Clean and simple design', FALSE, 0.00);
 
+-- Add resumes table for resume builder
+CREATE TABLE resumes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(20),
+    location VARCHAR(100),
+    professional_summary TEXT,
+    experiences LONGTEXT,
+    education LONGTEXT,
+    skills LONGTEXT,
+    certifications LONGTEXT,
+    template VARCHAR(50) DEFAULT 'modern_blue',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_resume (user_id)
+);
+
 -- Add user resumes table
 CREATE TABLE user_resumes (
     id INT PRIMARY KEY AUTO_INCREMENT,
